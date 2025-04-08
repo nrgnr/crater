@@ -53,11 +53,11 @@ services:
     networks:
       - internal
     healthcheck:
-      test: ["CMD", "php", "artisan", "db:monitor"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-      start_period: 30s
+      test: ["CMD-SHELL", "php-fpm -t && php artisan db:monitor || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
 
   cron:
     image: nrgnr/crater:local
@@ -84,8 +84,6 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
-      app:
-        condition: service_healthy
     networks:
       - internal
 
@@ -93,20 +91,21 @@ services:
     image: mariadb:10.6
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: rootpass_2TrP@zD7sMfAqgYw
+      MYSQL_ROOT_PASSWORD: rootpass_2TrP@zD7sMfAqzCgSftLhK
       MYSQL_DATABASE: crater
       MYSQL_USER: nrguser
       MYSQL_PASSWORD: 3hM2eYoV9zRsnZc7jNa7PAqzCgSftLhK
+      MYSQL_ROOT_HOST: '%'
     volumes:
       - mysql_data:/var/lib/mysql
     ports:
       - "3306:3306"
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpass_2TrP@zD7sMfAqgYw"]
-      interval: 5s
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "root", "-prootpass_2TrP@zD7sMfAqgYw"]
+      interval: 10s
       timeout: 5s
-      retries: 10
-      start_period: 10s
+      retries: 5
+      start_period: 30s
     networks:
       - internal
     command: [
@@ -115,7 +114,8 @@ services:
       '--default-authentication-plugin=mysql_native_password',
       '--max_allowed_packet=128M',
       '--innodb_log_file_size=256M',
-      '--skip-name-resolve'
+      '--skip-name-resolve',
+      '--bind-address=0.0.0.0'
     ]
 
 volumes:
