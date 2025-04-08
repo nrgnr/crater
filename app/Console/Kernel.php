@@ -19,6 +19,7 @@ class Kernel extends ConsoleKernel
         Commands\UpdateCommand::class,
         Commands\CreateTemplateCommand::class,
         Commands\InstallModuleCommand::class,
+        Commands\DatabaseMonitor::class,
     ];
 
     /**

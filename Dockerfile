@@ -15,11 +15,12 @@ RUN apt-get update && apt-get install -y \
     unzip \
     libzip-dev \
     libmagickwand-dev \
-    mariadb-client
+    --no-install-recommends
 
 # Clear cache
 RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 
+# Install PHP extensions
 RUN pecl install imagick \
     && docker-php-ext-enable imagick
 
@@ -37,4 +38,14 @@ RUN mkdir -p /home/$user/.composer && \
 # Set working directory
 WORKDIR /var/www
 
+# Copy and set entrypoint script
+COPY docker-compose/php/docker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+# Switch to non-root user
 USER $user
+
+# Copy application files
+COPY --chown=$user:$user . /var/www/
+
+ENTRYPOINT ["docker-entrypoint.sh"]
