@@ -4,35 +4,42 @@ services:
   app:
     build:
       args:
-        user: crater-user
-        uid: 1000
+        user: ${DOCKER_USER:-crater-user}
+        uid: ${DOCKER_UID:-1000}
       context: ./
       dockerfile: Dockerfile
     image: crater-php
     restart: unless-stopped
-    working_dir: /var/www/
+    environment:
+      DB_HOST: ${DB_HOST:-db}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_DATABASE: ${DB_DATABASE:-crater}
+      DB_USERNAME: ${DB_USERNAME:-crater}
+      DB_PASSWORD: ${DB_PASSWORD:-crater}
+      DB_SEED: ${DB_SEED:-false}
     volumes:
       - ./:/var/www
       - ./docker-compose/php/uploads.ini:/usr/local/etc/php/conf.d/uploads.ini:rw,delegated
+    depends_on:
+      - db
     networks:
       - crater
 
   db:
-    image: mariadb
-    restart: always
-    volumes:
-      - db:/var/lib/mysql
-      # If you want to persist data on the host, comment the line above this one...
-      # and uncomment the line under this one.
-      #- ./docker-compose/db/data:/var/lib/mysql:rw,delegated
+    image: mariadb:10.6
+    restart: unless-stopped
     environment:
-      MYSQL_USER: crater
-      MYSQL_PASSWORD: crater
-      MYSQL_DATABASE: crater
-      MYSQL_ROOT_PASSWORD: crater
-      MYSQL_ALLOW_EMPTY_PASSWORD: "no"
-    ports:
-      - '33006:3306'
+      MYSQL_DATABASE: ${DB_DATABASE:-crater}
+      MYSQL_USER: ${DB_USERNAME:-crater}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-crater}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-crater}
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - crater
 
@@ -40,30 +47,43 @@ services:
     image: caddy:2-alpine
     restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "${HTTP_PORT:-8080}:8080"
     volumes:
       - ./:/var/www
       - ./Caddyfile:/etc/caddy/Caddyfile
       - caddy_data:/data
       - caddy_config:/config
-    networks:
-      - crater
     depends_on:
       - app
+    networks:
+      - crater
 
   cron:
     build:
       context: ./
       dockerfile: ./docker-compose/cron.dockerfile
+    restart: unless-stopped
+    environment:
+      DB_HOST: ${DB_HOST:-db}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_DATABASE: ${DB_DATABASE:-crater}
+      DB_USERNAME: ${DB_USERNAME:-crater}
+      DB_PASSWORD: ${DB_PASSWORD:-crater}
     volumes:
       - ./:/var/www
+    depends_on:
+      - db
+      - app
     networks:
       - crater
 
 volumes:
-  db:
+  db_data:
+    driver: local
   caddy_data:
+    driver: local
   caddy_config:
+    driver: local
 
 networks:
   crater:
