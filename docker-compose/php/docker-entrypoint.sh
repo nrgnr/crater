@@ -1,25 +1,9 @@
 #!/bin/sh
 set -e
 
-# Maximum number of attempts to connect to the database
-MAX_ATTEMPTS=30
-ATTEMPT=1
-
+# Wait for database to be ready
 echo "Waiting for database connection..."
-while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
-    if php artisan db:monitor > /dev/null 2>&1; then
-        echo "Database connection established"
-        break
-    fi
-    echo "Attempt $ATTEMPT of $MAX_ATTEMPTS: Database not ready yet..."
-    ATTEMPT=$((ATTEMPT + 1))
-    sleep 2
-done
-
-if [ $ATTEMPT -gt $MAX_ATTEMPTS ]; then
-    echo "Could not connect to database after $MAX_ATTEMPTS attempts"
-    exit 1
-fi
+wait-for-db db
 
 # Check if database exists and has migrations table
 if php artisan migrate:status > /dev/null 2>&1; then

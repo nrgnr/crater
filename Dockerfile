@@ -15,6 +15,7 @@ RUN apt-get update && apt-get install -y \
     unzip \
     libzip-dev \
     libmagickwand-dev \
+    default-mysql-client \
     --no-install-recommends
 
 # Clear cache
@@ -38,6 +39,10 @@ RUN groupadd --force -g $uid $user \
 
 # Set working directory
 WORKDIR /var/www
+
+# Copy wait-for-db script
+COPY docker-compose/php/wait-for-db.sh /usr/local/bin/wait-for-db
+RUN chmod +x /usr/local/bin/wait-for-db
 
 # Copy and set entrypoint script
 COPY docker-compose/php/docker-entrypoint.sh /usr/local/bin/
