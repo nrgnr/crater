@@ -1,3 +1,5 @@
+version: '3'
+
 x-crater-common-env: &crater-common-env
   APP_NAME: ${APP_NAME:-Crater}
   APP_ENV: ${APP_ENV:-production}
@@ -22,80 +24,113 @@ x-db-common-env: &db-common-env
 
 services:
   app:
-    build:
-      args:
-        user: ${DOCKER_USER:-crater-user}
-        uid: ${DOCKER_UID:-1000}
-      context: ./
-      dockerfile: Dockerfile
-    image: ${DOCKER_IMAGE:-crater-php}
+    image: nrgnr/crater:local
     restart: unless-stopped
     environment:
-      <<: *crater-common-env
-      DB_SEED: ${DB_SEED:-false}
+      DB_CONNECTION: mysql
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_DATABASE: crater
+      DB_USERNAME: nrguser
+      DB_PASSWORD: 3hM2eYoV9zRsnZc7jNa7PAqzCgSftLhK
+      DB_SEED: "true"
+      APP_ENV: production
+      APP_DEBUG: "true"
+      APP_KEY: base64:kZN2g9Tg6+mi1YNc+sSiZAO2ljlQBfLC3ByWH0YarWk=
+      APP_URL: http://localhost:8080
+      LOG_CHANNEL: stderr
+      SESSION_DRIVER: file
+      QUEUE_CONNECTION: sync
+      FILESYSTEM_DISK: local
+      BROADCAST_DRIVER: log
+      CACHE_DRIVER: file
     volumes:
-      - ./:/var/www
-      - ./docker-compose/php/uploads.ini:/usr/local/etc/php/conf.d/uploads.ini:rw,delegated
+      - crater_app:/var/www
+      - ./docker-compose/php/uploads.ini:/usr/local/etc/php/conf.d/uploads.ini:ro
     depends_on:
-      db:
+      mysql:
         condition: service_healthy
     networks:
-      - crater
-
-  db:
-    image: ${DB_IMAGE:-mariadb:10.6}
-    restart: unless-stopped
-    environment:
-      <<: *db-common-env
-    volumes:
-      - ${DB_VOLUME:-db_data}:/var/lib/mysql
+      - internal
+      - caddy
+      - node1
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$$MYSQL_ROOT_PASSWORD"]
-      interval: ${HEALTHCHECK_INTERVAL:-5s}
-      timeout: ${HEALTHCHECK_TIMEOUT:-5s}
-      retries: ${HEALTHCHECK_RETRIES:-10}
-      start_period: ${HEALTHCHECK_START_PERIOD:-10s}
-    networks:
-      - crater
-
-  caddy:
-    image: ${CADDY_IMAGE:-caddy:2-alpine}
-    restart: unless-stopped
-    ports:
-      - "${HTTP_PORT:-8080}:8080"
-    volumes:
-      - ./:/var/www
-      - ./Caddyfile:/etc/caddy/Caddyfile
-      - caddy_data:/data
-      - caddy_config:/config
-    depends_on:
-      - app
-    networks:
-      - crater
+      test: ["CMD", "php", "artisan", "db:monitor"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
 
   cron:
-    build:
-      context: ./
-      dockerfile: ./docker-compose/cron.dockerfile
+    image: nrgnr/crater:local
     restart: unless-stopped
     environment:
-      <<: *crater-common-env
+      DB_CONNECTION: mysql
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_DATABASE: crater
+      DB_USERNAME: nrguser
+      DB_PASSWORD: 3hM2eYoV9zRsnZc7jNa7PAqzCgSftLhK
+      APP_ENV: production
+      APP_DEBUG: "true"
+      APP_KEY: base64:kZN2g9Tg6+mi1YNc+sSiZAO2ljlQBfLC3ByWH0YarWk=
+      APP_URL: http://localhost:8080
+      LOG_CHANNEL: stderr
+      SESSION_DRIVER: file
+      QUEUE_CONNECTION: sync
+      FILESYSTEM_DISK: local
+      BROADCAST_DRIVER: log
+      CACHE_DRIVER: file
     volumes:
-      - ./:/var/www
+      - crater_app:/var/www
     depends_on:
-      db:
+      mysql:
+        condition: service_healthy
+      app:
         condition: service_healthy
     networks:
-      - crater
+      - internal
+      - caddy
+      - node1
+
+  mysql:
+    image: mariadb:10.6
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass_2TrP@zD7sMfAqgYw
+      MYSQL_DATABASE: crater
+      MYSQL_USER: nrguser
+      MYSQL_PASSWORD: 3hM2eYoV9zRsnZc7jNa7PAqzCgSftLhK
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$$MYSQL_ROOT_PASSWORD"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - internal
+    command: [
+      '--character-set-server=utf8mb4',
+      '--collation-server=utf8mb4_unicode_ci',
+      '--default-authentication-plugin=mysql_native_password',
+      '--max_allowed_packet=128M',
+      '--innodb_log_file_size=256M'
+    ]
 
 volumes:
-  db_data:
-    driver: ${VOLUME_DRIVER:-local}
-  caddy_data:
-    driver: ${VOLUME_DRIVER:-local}
-  caddy_config:
-    driver: ${VOLUME_DRIVER:-local}
+  crater_app:
+    driver: local
+  mysql_data:
+    driver: local
 
 networks:
-  crater:
-    driver: ${NETWORK_DRIVER:-bridge}
+  internal:
+    driver: bridge
+  caddy:
+    external: true
+    name: caddy-stack1_caddy
+  node1:
+    external: true
+    name: node1-core_internal
