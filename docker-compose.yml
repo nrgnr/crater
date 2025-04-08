@@ -27,23 +27,7 @@ services:
     image: nrgnr/crater:local
     restart: unless-stopped
     environment:
-      DB_CONNECTION: mysql
-      DB_HOST: mysql
-      DB_PORT: 3306
-      DB_DATABASE: crater
-      DB_USERNAME: nrguser
-      DB_PASSWORD: 3hM2eYoV9zRsnZc7jNa7PAqzCgSftLhK
-      DB_SEED: "true"
-      APP_ENV: production
-      APP_DEBUG: "true"
-      APP_KEY: base64:kZN2g9Tg6+mi1YNc+sSiZAO2ljlQBfLC3ByWH0YarWk=
-      APP_URL: http://localhost:8080
-      LOG_CHANNEL: stderr
-      SESSION_DRIVER: file
-      QUEUE_CONNECTION: sync
-      FILESYSTEM_DISK: local
-      BROADCAST_DRIVER: log
-      CACHE_DRIVER: file
+      <<: *crater-common-env
     volumes:
       - crater_app:/var/www
       - ./docker-compose/php/uploads.ini:/usr/local/etc/php/conf.d/uploads.ini:ro
@@ -65,16 +49,17 @@ services:
     restart: unless-stopped
     volumes:
       - crater_app:/var/www
-      - ./docker-compose/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
     ports:
       - "8080:80"
     depends_on:
-      - app
+      app:
+        condition: service_healthy
     networks:
       - internal
       - caddy
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -84,22 +69,7 @@ services:
     image: nrgnr/crater:local
     restart: unless-stopped
     environment:
-      DB_CONNECTION: mysql
-      DB_HOST: mysql
-      DB_PORT: 3306
-      DB_DATABASE: crater
-      DB_USERNAME: nrguser
-      DB_PASSWORD: 3hM2eYoV9zRsnZc7jNa7PAqzCgSftLhK
-      APP_ENV: production
-      APP_DEBUG: "true"
-      APP_KEY: base64:kZN2g9Tg6+mi1YNc+sSiZAO2ljlQBfLC3ByWH0YarWk=
-      APP_URL: http://localhost:8080
-      LOG_CHANNEL: stderr
-      SESSION_DRIVER: file
-      QUEUE_CONNECTION: sync
-      FILESYSTEM_DISK: local
-      BROADCAST_DRIVER: log
-      CACHE_DRIVER: file
+      <<: *crater-common-env
     volumes:
       - crater_app:/var/www
     depends_on:
@@ -112,17 +82,14 @@ services:
     image: mariadb:10.6
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: rootpass_2TrP@zD7sMfAqzCgSftLhK
-      MYSQL_DATABASE: crater
-      MYSQL_USER: nrguser
-      MYSQL_PASSWORD: 3hM2eYoV9zRsnZc7jNa7PAqzCgSftLhK
+      <<: *db-common-env
       MYSQL_ROOT_HOST: '%'
     volumes:
       - mysql_data:/var/lib/mysql
     ports:
       - "3306:3306"
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "root", "-prootpass_2TrP@zD7sMfAqgYw"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -151,6 +118,3 @@ networks:
   caddy:
     external: true
     name: caddy-stack1_caddy
-  node1:
-    external: true
-    name: node1-core_internal
