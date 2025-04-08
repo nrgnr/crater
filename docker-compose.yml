@@ -52,8 +52,6 @@ services:
         condition: service_healthy
     networks:
       - internal
-      - caddy
-      - node1
     healthcheck:
       test: ["CMD", "php", "artisan", "db:monitor"]
       interval: 10s
@@ -90,8 +88,6 @@ services:
         condition: service_healthy
     networks:
       - internal
-      - caddy
-      - node1
 
   mysql:
     image: mariadb:10.6
@@ -103,8 +99,10 @@ services:
       MYSQL_PASSWORD: 3hM2eYoV9zRsnZc7jNa7PAqzCgSftLhK
     volumes:
       - mysql_data:/var/lib/mysql
+    ports:
+      - "3306:3306"
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$$MYSQL_ROOT_PASSWORD"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpass_2TrP@zD7sMfAqgYw"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -116,7 +114,8 @@ services:
       '--collation-server=utf8mb4_unicode_ci',
       '--default-authentication-plugin=mysql_native_password',
       '--max_allowed_packet=128M',
-      '--innodb_log_file_size=256M'
+      '--innodb_log_file_size=256M',
+      '--skip-name-resolve'
     ]
 
 volumes:
