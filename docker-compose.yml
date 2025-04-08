@@ -1,4 +1,24 @@
-version: '3'
+x-crater-common-env: &crater-common-env
+  APP_NAME: ${APP_NAME:-Crater}
+  APP_ENV: ${APP_ENV:-production}
+  APP_KEY: ${APP_KEY:-base64:kZN2g9Tg6+mi1YNc+sSiZAO2ljlQBfLC3ByWH0YarWk=}
+  APP_DEBUG: ${APP_DEBUG:-false}
+  APP_URL: ${APP_URL:-http://localhost}
+  DB_CONNECTION: ${DB_CONNECTION:-mysql}
+  DB_HOST: ${DB_HOST:-db}
+  DB_PORT: ${DB_PORT:-3306}
+  DB_DATABASE: ${DB_DATABASE}
+  DB_USERNAME: ${DB_USERNAME}
+  DB_PASSWORD: ${DB_PASSWORD}
+  SESSION_DRIVER: ${SESSION_DRIVER:-file}
+  QUEUE_CONNECTION: ${QUEUE_CONNECTION:-sync}
+  MAIL_MAILER: ${MAIL_MAILER:-log}
+
+x-db-common-env: &db-common-env
+  MYSQL_DATABASE: ${DB_DATABASE}
+  MYSQL_USER: ${DB_USERNAME}
+  MYSQL_PASSWORD: ${DB_PASSWORD}
+  MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
 
 services:
   app:
@@ -8,21 +28,11 @@ services:
         uid: ${DOCKER_UID:-1000}
       context: ./
       dockerfile: Dockerfile
-    image: crater-php
+    image: ${DOCKER_IMAGE:-crater-php}
     restart: unless-stopped
     environment:
-      DB_CONNECTION: mysql
-      DB_HOST: ${DB_HOST:-db}
-      DB_PORT: ${DB_PORT:-3306}
-      DB_DATABASE: ${DB_DATABASE:-crater}
-      DB_USERNAME: ${DB_USERNAME:-crater}
-      DB_PASSWORD: ${DB_PASSWORD:-crater}
+      <<: *crater-common-env
       DB_SEED: ${DB_SEED:-false}
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-crater}
-      APP_ENV: ${APP_ENV:-local}
-      APP_DEBUG: ${APP_DEBUG:-true}
-      APP_KEY: ${APP_KEY:-base64:kZN2g9Tg6+mi1YNc+sSiZAO2ljlQBfLC3ByWH0YarWk=}
-      APP_URL: ${APP_URL:-http://localhost:8080}
     volumes:
       - ./:/var/www
       - ./docker-compose/php/uploads.ini:/usr/local/etc/php/conf.d/uploads.ini:rw,delegated
@@ -33,26 +43,23 @@ services:
       - crater
 
   db:
-    image: mariadb:10.6
+    image: ${DB_IMAGE:-mariadb:10.6}
     restart: unless-stopped
     environment:
-      MYSQL_DATABASE: ${DB_DATABASE:-crater}
-      MYSQL_USER: ${DB_USERNAME:-crater}
-      MYSQL_PASSWORD: ${DB_PASSWORD:-crater}
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-crater}
+      <<: *db-common-env
     volumes:
-      - db_data:/var/lib/mysql
+      - ${DB_VOLUME:-db_data}:/var/lib/mysql
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$$MYSQL_ROOT_PASSWORD"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-      start_period: 10s
+      interval: ${HEALTHCHECK_INTERVAL:-5s}
+      timeout: ${HEALTHCHECK_TIMEOUT:-5s}
+      retries: ${HEALTHCHECK_RETRIES:-10}
+      start_period: ${HEALTHCHECK_START_PERIOD:-10s}
     networks:
       - crater
 
   caddy:
-    image: caddy:2-alpine
+    image: ${CADDY_IMAGE:-caddy:2-alpine}
     restart: unless-stopped
     ports:
       - "${HTTP_PORT:-8080}:8080"
@@ -72,16 +79,7 @@ services:
       dockerfile: ./docker-compose/cron.dockerfile
     restart: unless-stopped
     environment:
-      DB_CONNECTION: mysql
-      DB_HOST: ${DB_HOST:-db}
-      DB_PORT: ${DB_PORT:-3306}
-      DB_DATABASE: ${DB_DATABASE:-crater}
-      DB_USERNAME: ${DB_USERNAME:-crater}
-      DB_PASSWORD: ${DB_PASSWORD:-crater}
-      APP_ENV: ${APP_ENV:-local}
-      APP_DEBUG: ${APP_DEBUG:-true}
-      APP_KEY: ${APP_KEY:-base64:kZN2g9Tg6+mi1YNc+sSiZAO2ljlQBfLC3ByWH0YarWk=}
-      APP_URL: ${APP_URL:-http://localhost:8080}
+      <<: *crater-common-env
     volumes:
       - ./:/var/www
     depends_on:
@@ -92,12 +90,12 @@ services:
 
 volumes:
   db_data:
-    driver: local
+    driver: ${VOLUME_DRIVER:-local}
   caddy_data:
-    driver: local
+    driver: ${VOLUME_DRIVER:-local}
   caddy_config:
-    driver: local
+    driver: ${VOLUME_DRIVER:-local}
 
 networks:
   crater:
-    driver: bridge
+    driver: ${NETWORK_DRIVER:-bridge}
