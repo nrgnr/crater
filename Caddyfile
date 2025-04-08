@@ -1,0 +1,15 @@
+:8080 {
+    root * /var/www/public
+    php_fastcgi app:9000
+    file_server
+    encode gzip
+    
+    # Handle Laravel's pretty URLs
+    try_files {path} {path}/ /index.php?{query}
+    
+    # Prevent access to sensitive files
+    @forbidden {
+        path /.env /.git/* /storage/* /vendor/*
+    }
+    respond @forbidden 403
+} 
